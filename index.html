@@ -1,0 +1,752 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Aura Battle SPS</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Lexend:wght@400;600;800&family=Martian+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: one sticker-board screen — scoreboard, arena, hype bubble, move buttons, power-up shop, round history. Single deliberate look (bright sticker world). */
+:root {
+  --bg: #E7E0FF;
+  --dot: #CFC3FF;
+  --ink: #1B1036;
+  --paper: #FFFDF6;
+  --pink: #FF4FA3;
+  --cyan: #2EC4FF;
+  --yellow: #FFD12E;
+  --lime: #7CF29A;
+  --muted: #5B4F80;
+  --display: "Bagel Fat One", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --body: "Lexend", system-ui, -apple-system, sans-serif;
+  --mono: "Martian Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { min-height: 100%; }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+img { max-width: 100%; }
+body {
+  margin: 0;
+  background-color: var(--bg);
+  background-image: radial-gradient(var(--dot) 1.6px, transparent 1.6px);
+  background-size: 22px 22px;
+  color: var(--ink);
+  font-family: var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 18px 28px;
+  overflow-x: hidden;
+}
+.wrap { max-width: 720px; margin: 0 auto; display: grid; gap: 16px; }
+
+header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+h1 {
+  font-family: var(--display); font-weight: 400; margin: 0;
+  font-size: clamp(30px, 7vw, 48px); line-height: .95; letter-spacing: .5px; text-wrap: balance;
+}
+h1 span { color: var(--pink); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; }
+.sticker {
+  display: inline-block; font-family: var(--mono); font-weight: 700; font-size: 11px;
+  letter-spacing: 1.2px; text-transform: uppercase;
+  background: var(--yellow); border: 2.5px solid var(--ink); border-radius: 999px;
+  padding: 6px 12px; transform: rotate(-4deg); box-shadow: 3px 3px 0 var(--ink);
+}
+.toggles { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip {
+  font: 600 13px var(--body); color: var(--ink); background: var(--paper);
+  border: 2.5px solid var(--ink); border-radius: 12px; padding: 8px 12px; cursor: pointer;
+  box-shadow: 3px 3px 0 var(--ink); transition: transform .1s, box-shadow .1s;
+}
+.chip:active { transform: translate(3px,3px); box-shadow: 0 0 0 var(--ink); }
+.chip[aria-pressed="true"] { background: var(--cyan); }
+.chip:focus-visible, .move:focus-visible, .big:focus-visible, .power:focus-visible { outline: 3px solid var(--pink); outline-offset: 3px; }
+
+.board {
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px;
+  background: var(--paper); border: 3px solid var(--ink); border-radius: 22px;
+  padding: 14px 16px; box-shadow: 6px 6px 0 var(--ink);
+}
+.side { display: grid; gap: 2px; min-width: 0; }
+.side.bot { text-align: right; }
+.who { font-weight: 800; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+.score { font-family: var(--display); font-size: clamp(40px, 11vw, 62px); line-height: 1; font-variant-numeric: tabular-nums; }
+.aura { font-family: var(--mono); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.rank { font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vs { display: grid; justify-items: center; gap: 6px; }
+.streakBadge {
+  font-family: var(--display); font-size: 22px; background: var(--pink); color: var(--paper);
+  border: 2.5px solid var(--ink); border-radius: 16px; min-width: 64px; padding: 6px 10px;
+  text-align: center; transform: rotate(-6deg); font-variant-numeric: tabular-nums; line-height: 1;
+}
+.streakBadge small { display: block; font: 700 9px var(--mono); letter-spacing: 1px; text-transform: uppercase; margin-top: 3px; }
+.streakBadge.hot { background: var(--yellow); color: var(--ink); animation: throb .8s ease-in-out infinite; }
+@keyframes throb { 0%,100% { transform: rotate(-6deg) scale(1); } 50% { transform: rotate(-6deg) scale(1.08); } }
+.vs small { font-family: var(--mono); font-size: 10px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
+.shieldOn { font: 700 10px var(--mono); background: var(--lime); border: 2px solid var(--ink); border-radius: 999px; padding: 2px 8px; }
+
+.arena { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.hand {
+  position: relative; aspect-ratio: 1 / 0.8; max-width: 100%;
+  background: var(--cyan); border: 3px solid var(--ink); border-radius: 26px;
+  display: grid; place-items: center; overflow: hidden; box-shadow: 6px 6px 0 var(--ink);
+}
+.hand.bot { background: var(--yellow); }
+.hand .glyph { font-size: clamp(60px, 16vw, 104px); line-height: 1; user-select: none; }
+.hand.bot .glyph { transform: scaleX(-1); }
+.hand .tag { position: absolute; top: 10px; left: 12px; font: 700 10px var(--mono); letter-spacing: 1.2px; text-transform: uppercase; background: var(--paper); border: 2px solid var(--ink); border-radius: 999px; padding: 3px 9px; }
+.hand.win { background: var(--lime); }
+.hand.lose { filter: grayscale(.8) brightness(.95); }
+.shake .glyph { animation: pump .3s ease-in-out 3; }
+.hand.bot.shake .glyph { animation-name: pumpFlip; }
+@keyframes pump { 0%,100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-22px) rotate(-10deg); } }
+@keyframes pumpFlip { 0%,100% { transform: scaleX(-1) translateY(0) rotate(0); } 50% { transform: scaleX(-1) translateY(-22px) rotate(-10deg); } }
+.pop .glyph { animation: popIn .35s cubic-bezier(.3,1.6,.5,1); }
+.hand.bot.pop .glyph { animation-name: popInFlip; }
+@keyframes popIn { from { transform: scale(.3) rotate(-20deg); } to { transform: scale(1) rotate(0); } }
+@keyframes popInFlip { from { transform: scaleX(-1) scale(.3) rotate(-20deg); } to { transform: scaleX(-1) scale(1) rotate(0); } }
+
+.hype {
+  position: relative; background: var(--ink); color: var(--paper); border-radius: 18px;
+  padding: 14px 18px; min-height: 64px; display: grid; align-content: center; gap: 2px;
+}
+.hype::before { content: ""; position: absolute; top: -12px; left: 50%; margin-left: -12px; border: 12px solid transparent; border-top: 0; border-bottom-color: var(--ink); }
+.hype .big-line { font-family: var(--display); font-size: clamp(20px, 5.4vw, 30px); line-height: 1.1; text-wrap: balance; }
+.hype .sub { font-size: 13px; opacity: .85; line-height: 1.45; }
+.hype .delta { font-family: var(--mono); font-weight: 700; }
+.delta.up { color: var(--lime); } .delta.down { color: var(--pink); }
+
+.moves { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
+.move {
+  position: relative;
+  font: 800 15px var(--body); color: var(--ink); background: var(--paper);
+  border: 3px solid var(--ink); border-radius: 20px; padding: 12px 6px 10px; cursor: pointer;
+  display: grid; justify-items: center; gap: 4px; box-shadow: 5px 5px 0 var(--ink);
+  transition: transform .08s, box-shadow .08s, background .15s;
+}
+.move .e { font-size: clamp(36px, 10vw, 52px); line-height: 1.1; }
+.move kbd { font: 700 10px var(--mono); color: var(--muted); border: 1.5px solid var(--muted); border-radius: 5px; padding: 1px 5px; }
+.move:hover:not(:disabled) { background: var(--yellow); transform: translateY(-3px); }
+.move:active:not(:disabled) { transform: translate(5px,5px); box-shadow: 0 0 0 var(--ink); }
+.move:disabled { opacity: .55; cursor: wait; }
+.move .safe {
+  position: absolute; top: -12px; right: -6px; font: 700 10px var(--mono); letter-spacing: .5px;
+  background: var(--lime); border: 2px solid var(--ink); border-radius: 999px; padding: 3px 8px; transform: rotate(6deg);
+}
+
+/* power-ups */
+.shop {
+  background: var(--paper); border: 3px solid var(--ink); border-radius: 20px; padding: 14px;
+  display: grid; gap: 10px; box-shadow: 5px 5px 0 var(--ink);
+}
+.shopHead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.shopHead h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 20px; }
+.shopHead span { font-size: 12px; color: var(--muted); }
+.powers { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
+.power {
+  font: 700 13px var(--body); color: var(--ink); background: var(--bg);
+  border: 2.5px solid var(--ink); border-radius: 14px; padding: 10px 6px; cursor: pointer;
+  display: grid; justify-items: center; gap: 3px; text-align: center;
+}
+.power .pi { font-size: 24px; line-height: 1; }
+.power .cost { font: 700 10px var(--mono); color: var(--muted); }
+.power .what { font-weight: 400; font-size: 11px; color: var(--muted); line-height: 1.3; }
+.power:hover:not(:disabled) { background: var(--yellow); }
+.power:disabled { opacity: .45; cursor: not-allowed; }
+.power.active { background: var(--lime); }
+.intel {
+  font-size: 13px; line-height: 1.5; background: var(--bg); border: 2px dashed var(--muted);
+  border-radius: 12px; padding: 10px 12px;
+}
+.intel b { font-weight: 800; }
+
+/* history */
+.history { display: grid; gap: 8px; }
+.history h2 { margin: 0; font: 800 12px var(--body); letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+.tape { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; min-height: 64px; }
+.tape .empty { font-size: 13px; color: var(--muted); align-self: center; }
+.round {
+  flex: 0 0 auto; display: grid; justify-items: center; gap: 1px; width: 46px;
+  background: var(--paper); border: 2px solid var(--ink); border-radius: 10px; padding: 4px 0; font-size: 18px; line-height: 1.15;
+}
+.round .r { font: 700 9px var(--mono); }
+.round.W { background: var(--lime); } .round.L { background: #FFC2DF; }
+.sep { flex: 0 0 auto; align-self: stretch; display: grid; place-items: center; font: 700 9px var(--mono); color: var(--muted); writing-mode: vertical-rl; transform: rotate(180deg); border-left: 2px dashed var(--muted); padding: 0 4px; letter-spacing: 1px; text-transform: uppercase; }
+.round .bm { transform: scaleX(-1); display: inline-block; }
+
+.stats { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+.stats b { color: var(--ink); font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.sixseven-btn { font-family: var(--display); font-size: 18px; background: var(--pink); color: var(--paper); transform: rotate(3deg); }
+.sixseven-btn.chip:active { transform: rotate(3deg) translate(3px,3px); }
+
+.overlay {
+  position: fixed; inset: 0; z-index: 50; display: grid; place-items: center;
+  background: rgba(27,16,54,.72); padding: 20px;
+  padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px));
+}
+.six7 { text-align: center; color: var(--paper); display: grid; gap: 6px; justify-items: center; pointer-events: none; }
+.six7 .num { font-family: var(--display); font-size: clamp(90px, 30vw, 200px); line-height: .9; color: var(--yellow); -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; display: flex; gap: .15em; }
+.six7 .num span:first-child { animation: bobA .45s ease-in-out infinite; }
+.six7 .num span:last-child { animation: bobB .45s ease-in-out infinite; color: var(--pink); }
+.six7 .hands { font-size: clamp(56px, 16vw, 96px); display: flex; gap: 40px; }
+.six7 .hands span:first-child { animation: bobA .45s ease-in-out infinite; }
+.six7 .hands span:last-child { animation: bobB .45s ease-in-out infinite; display: inline-block; }
+.six7 .cap { font-family: var(--display); font-size: clamp(20px, 6vw, 32px); }
+@keyframes bobA { 0%,100% { transform: translateY(-18px); } 50% { transform: translateY(18px); } }
+@keyframes bobB { 0%,100% { transform: translateY(18px); } 50% { transform: translateY(-18px); } }
+
+.card {
+  background: var(--paper); color: var(--ink); border: 3px solid var(--ink); border-radius: 24px;
+  box-shadow: 8px 8px 0 var(--ink); padding: 24px 22px; max-width: 420px; width: 100%;
+  display: grid; gap: 12px; text-align: center;
+}
+.card h2 { font-family: var(--display); font-weight: 400; font-size: clamp(32px, 9vw, 46px); margin: 0; line-height: 1; text-wrap: balance; }
+.card p { margin: 0; line-height: 1.5; }
+.card .final { font-family: var(--mono); font-weight: 700; font-size: 14px; }
+.big {
+  font: 400 22px var(--display); color: var(--ink); background: var(--lime);
+  border: 3px solid var(--ink); border-radius: 16px; padding: 12px 16px; cursor: pointer; box-shadow: 4px 4px 0 var(--ink);
+}
+.big:active { transform: translate(4px,4px); box-shadow: none; }
+
+#confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 60; }
+
+@media (max-width: 420px) {
+  .board { padding: 12px; gap: 6px; }
+  .streakBadge { min-width: 54px; font-size: 18px; }
+  .move { font-size: 13px; }
+  .power .what { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001s !important; animation-iteration-count: 1 !important; transition: none !important; }
+}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div style="display:grid;gap:8px">
+      <h1>Scissors Paper <span>Stone</span></h1>
+      <div><span class="sticker" id="modeSticker">Streak run · one loss ends it</span></div>
+    </div>
+    <div class="toggles">
+      <button class="chip" id="gameBtn" type="button" title="Switch game mode">Mode: Streak run</button>
+      <button class="chip" id="modeBtn" type="button" aria-pressed="false" title="Switch opponent">Bot: NPC 🤖</button>
+      <button class="chip" id="soundBtn" type="button" aria-pressed="false">Sound off</button>
+    </div>
+  </header>
+
+  <section class="board" aria-label="Scoreboard">
+    <div class="side">
+      <span class="who">You</span>
+      <span class="score" id="pScore">0</span>
+      <span class="aura" id="pAura">0 aura</span>
+      <span class="rank" id="pRank">Rank: NPC</span>
+    </div>
+    <div class="vs">
+      <div class="streakBadge" id="streakBadge">🔥 0<small>streak</small></div>
+      <small id="roundNo">Round 1</small>
+      <span class="shieldOn" id="shieldOn" hidden>🛡️ shield up</span>
+    </div>
+    <div class="side bot">
+      <span class="who" id="botName">NPC Bot</span>
+      <span class="score" id="bScore">0</span>
+      <span class="aura" id="bAura">0 aura</span>
+      <span class="rank" id="bRank">has habits</span>
+    </div>
+  </section>
+
+  <section class="arena" aria-live="polite">
+    <div class="hand you" id="youHand"><span class="tag">You</span><span class="glyph" id="youGlyph">✊</span></div>
+    <div class="hand bot" id="botHand"><span class="tag">Bot</span><span class="glyph" id="botGlyph">✊</span></div>
+  </section>
+
+  <div class="hype" role="status">
+    <div class="big-line" id="hypeLine">Lock in. Read the bot.</div>
+    <div class="sub" id="hypeSub">NPC Bot has a habit. Study the history, spend aura on power-ups, and keep the streak alive.</div>
+  </div>
+
+  <section class="moves" aria-label="Pick a move">
+    <button class="move" type="button" data-move="scissors" id="mv-scissors"><span class="e">✌️</span>Scissors<kbd>1</kbd></button>
+    <button class="move" type="button" data-move="paper" id="mv-paper"><span class="e">✋</span>Paper<kbd>2</kbd></button>
+    <button class="move" type="button" data-move="stone" id="mv-stone"><span class="e">✊</span>Stone<kbd>3</kbd></button>
+  </section>
+
+  <section class="history">
+    <h2>Round history · you vs bot</h2>
+    <div class="tape" id="tape"><span class="empty">No rounds yet. Your first pick is a free guess.</span></div>
+  </section>
+
+  <section class="shop" aria-label="Power-ups">
+    <div class="shopHead"><h2>Aura shop</h2><span>Spend aura to protect your streak</span></div>
+    <div class="powers">
+      <button class="power" type="button" id="pwPeek"><span class="pi">🔮</span>Third Eye<span class="cost">150 aura</span><span class="what">Marks a move that can't lose this round</span></button>
+      <button class="power" type="button" id="pwShield"><span class="pi">🛡️</span>Shield<span class="cost">250 aura</span><span class="what">Your next loss won't break the streak</span></button>
+      <button class="power" type="button" id="pwScout"><span class="pi">🕵️</span>Scout<span class="cost">300 aura</span><span class="what">Reveals the bot's current habit</span></button>
+    </div>
+    <div class="intel" id="intel"><b>Tip:</b> ties keep your streak. The NPC Bot repeats a habit and switches it up every 7 rounds. Watch the round history.</div>
+  </section>
+
+  <div class="stats">
+    <span>Best streak <b id="best">0</b> · W/L/T <b id="wlt">0/0/0</b></span>
+    <button class="chip sixseven-btn" id="sixBtn" type="button" title="Or type 6 then 7">6-7</button>
+  </div>
+</div>
+
+<div class="overlay" id="six7" hidden>
+  <div class="six7">
+    <div class="hands"><span>🫴</span><span style="transform:scaleX(-1)">🫴</span></div>
+    <div class="num"><span>6</span><span>7</span></div>
+    <div class="cap" id="sixCap">SIX SEVENNNN</div>
+  </div>
+</div>
+
+<div class="overlay" id="endCard" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="endTitle">
+    <h2 id="endTitle">W</h2>
+    <p id="endText"></p>
+    <p class="final" id="endFinal"></p>
+    <button class="big" id="againBtn" type="button">Run it back</button>
+  </div>
+</div>
+
+<canvas id="confetti"></canvas>
+
+<script>
+(function () {
+  const MOVES = {
+    scissors: { e: '✌️', beats: 'paper', name: 'Scissors' },
+    paper:    { e: '✋', beats: 'stone', name: 'Paper' },
+    stone:    { e: '✊', beats: 'scissors', name: 'Stone' }
+  };
+  const KEYS = ['scissors', 'paper', 'stone'];
+  const COUNTER = { scissors: 'stone', paper: 'scissors', stone: 'paper' }; // what beats X
+  const NEXT = { scissors: 'paper', paper: 'stone', stone: 'scissors' };
+  const TARGET = 7;
+  const HABIT_FOLLOW = 0.8;
+  const COST = { peek: 150, shield: 250, scout: 300 };
+
+  const HABITS = {
+    copycat:  { name: 'Copycat', how: 'It copies whatever you played last round.', tip: 'Play what beats your own last move.' },
+    counter:  { name: 'Counter-puncher', how: 'It plays whatever beats your last move.', tip: 'Play what beats the counter to your last move.' },
+    loyal:    { name: 'Win-stay, lose-switch', how: 'If it won, it repeats its move. If it lost, it switches to beat what you just played.', tip: 'After it wins, counter its last move.' },
+    cycle:    { name: 'The Cycle', how: 'It goes Scissors → Paper → Stone → Scissors in order.', tip: 'Predict its next step in the loop and counter it.' },
+    stubborn: { name: 'Stubborn', how: 'It has a favourite move it keeps throwing.', tip: 'Spot the favourite in the history and counter it.' }
+  };
+  const HABIT_KEYS = Object.keys(HABITS);
+
+  const WIN_LINES = ['Absolute cinema.', 'W move. No cap.', 'Aura farming detected.', 'That was bussin fr.', 'Sigma behaviour.', 'Main character energy.', 'Bot got cooked.', 'Built different.', 'Ate and left no crumbs.', 'Chat, clip that.'];
+  const LOSE_LINES = ['You got fanum taxed.', 'Bro is cooked.', 'NPC behaviour detected.', 'L + ratio.', 'It is so over.', 'Aura debt unlocked.', 'Skill issue, ngl.', 'Bot is mewing at you.', 'Not the vibe.', 'Bro fell off.'];
+  const TIE_LINES = ['Chat, is this real?', 'Same brain cell.', 'Mirror match moment.', 'Twinning, unfortunately.', 'Nobody ate.', 'Literally the same person.'];
+  const STREAK_LINES = { 3: 'Heating up.', 5: 'You\'re him.', 8: 'Unstoppable aura.', 10: 'Double digits. Ohio is shaking.', 15: 'Literally the final boss.', 20: 'Chat, this is history.' };
+
+  const RANKS = [[-Infinity, 'Negative aura'], [0, 'NPC'], [150, 'Lowkey cooking'], [400, 'Rizz apprentice'], [800, 'Sigma'], [1500, 'Aura farmer'], [3000, 'Skibidi legend'], [6767, 'Final boss of Ohio']];
+
+  const $ = id => document.getElementById(id);
+  const el = {
+    pScore: $('pScore'), bScore: $('bScore'), pAura: $('pAura'), bAura: $('bAura'),
+    pRank: $('pRank'), bRank: $('bRank'), roundNo: $('roundNo'), botName: $('botName'),
+    youHand: $('youHand'), botHand: $('botHand'), youGlyph: $('youGlyph'), botGlyph: $('botGlyph'),
+    hypeLine: $('hypeLine'), hypeSub: $('hypeSub'), best: $('best'), wlt: $('wlt'),
+    gameBtn: $('gameBtn'), modeBtn: $('modeBtn'), soundBtn: $('soundBtn'), sixBtn: $('sixBtn'), modeSticker: $('modeSticker'),
+    streakBadge: $('streakBadge'), shieldOn: $('shieldOn'),
+    pwPeek: $('pwPeek'), pwShield: $('pwShield'), pwScout: $('pwScout'), intel: $('intel'), tape: $('tape'),
+    six7: $('six7'), sixCap: $('sixCap'), endCard: $('endCard'), endTitle: $('endTitle'),
+    endText: $('endText'), endFinal: $('endFinal'), againBtn: $('againBtn')
+  };
+  const buttons = Array.from(document.querySelectorAll('.move'));
+
+  let best = 0;
+  try { best = parseInt(localStorage.getItem('sps-aura-best') || '0', 10) || 0; } catch (e) {}
+
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+  const S = {
+    game: 'run', mode: 'npc', sound: false, busy: false,
+    p: 0, b: 0, pAura: 0, bAura: 0, round: 1, streak: 0, w: 0, l: 0, t: 0,
+    last: null, trans: {}, hist: [],
+    habit: pick(HABIT_KEYS), fav: pick(KEYS), botLast: null, botResult: null,
+    nextBot: null, peek: null, shield: false, scouted: false
+  };
+
+  function rankFor(a) { let r = RANKS[0][1]; for (const [min, n] of RANKS) if (a >= min) r = n; return r; }
+  const fmt = n => (n > 0 ? '+' : '') + n.toLocaleString('en');
+
+  /* ---------- bot brain ---------- */
+  function habitMove() {
+    const you = S.last, me = S.botLast;
+    switch (S.habit) {
+      case 'copycat': return you;
+      case 'counter': return you && COUNTER[you];
+      case 'loyal':
+        if (S.botResult === 'W') return me;
+        if (S.botResult === 'L') return you && COUNTER[you];
+        return null;
+      case 'cycle': return me ? NEXT[me] : null;
+      case 'stubborn': return S.fav;
+    }
+    return null;
+  }
+  function sigmaGuess() {
+    const row = S.last && S.trans[S.last];
+    if (!row) return null;
+    let guess = null, max = 0;
+    for (const k of KEYS) if ((row[k] || 0) > max) { max = row[k]; guess = k; }
+    return guess;
+  }
+  function planBot() {
+    let m = null;
+    if (S.mode === 'sigma') {
+      const g = sigmaGuess();
+      if (g && Math.random() < 0.65) m = COUNTER[g];
+    } else if (Math.random() < HABIT_FOLLOW) {
+      m = habitMove();
+    }
+    S.nextBot = m || pick(KEYS);
+    S.peek = null;
+    renderPeek();
+  }
+  function learn(move) {
+    if (S.last) {
+      S.trans[S.last] = S.trans[S.last] || {};
+      S.trans[S.last][move] = (S.trans[S.last][move] || 0) + 1;
+    }
+    S.last = move;
+  }
+  function maybeSwitchHabit() {
+    // NPC Bot changes its habit every 7 rounds (6-7 energy)
+    S.habitRounds = (S.habitRounds || 0) + 1;
+    if (S.mode !== 'npc' || S.habitRounds < 7) return false;
+    S.habitRounds = 0;
+    const old = S.habit;
+    do { S.habit = pick(HABIT_KEYS); } while (S.habit === old);
+    S.fav = pick(KEYS);
+    S.scouted = false;
+    el.intel.innerHTML = '<b>Vibe shift:</b> NPC Bot just switched to a new habit. Old reads no longer apply.';
+    return true;
+  }
+
+  /* ---------- render ---------- */
+  function render() {
+    el.pScore.textContent = S.p; el.bScore.textContent = S.b;
+    el.pAura.textContent = fmt(S.pAura) + ' aura'; el.bAura.textContent = fmt(S.bAura) + ' aura';
+    el.pRank.textContent = 'Rank: ' + rankFor(S.pAura);
+    el.bRank.textContent = S.mode === 'sigma' ? 'reads your patterns' : 'has habits';
+    el.roundNo.textContent = 'Round ' + S.round;
+    el.streakBadge.innerHTML = '🔥 ' + S.streak + '<small>streak</small>';
+    el.streakBadge.classList.toggle('hot', S.streak >= 5);
+    el.shieldOn.hidden = !S.shield;
+    el.best.textContent = best;
+    el.wlt.textContent = S.w + '/' + S.l + '/' + S.t;
+    const can = c => !S.busy && S.pAura >= c;
+    el.pwPeek.disabled = !can(COST.peek) || !!S.peek;
+    el.pwShield.disabled = !can(COST.shield) || S.shield;
+    el.pwShield.classList.toggle('active', S.shield);
+    el.pwScout.disabled = !can(COST.scout) || S.scouted;
+    el.pwScout.classList.toggle('active', S.scouted);
+  }
+  function renderPeek() {
+    buttons.forEach(b => { const s = b.querySelector('.safe'); if (s) s.remove(); });
+    if (!S.peek) return;
+    const tag = document.createElement('span');
+    tag.className = 'safe'; tag.textContent = S.peek.label;
+    $('mv-' + S.peek.move).append(tag);
+  }
+  function renderTape() {
+    el.tape.innerHTML = '';
+    if (!S.hist.length) { el.tape.innerHTML = '<span class="empty">No rounds yet. Your first pick is a free guess.</span>'; return; }
+    S.hist.slice(-16).forEach(h => {
+      if (h.sep) { const s = document.createElement('div'); s.className = 'sep'; s.textContent = 'new run'; el.tape.append(s); return; }
+      const d = document.createElement('div');
+      d.className = 'round ' + h.r;
+      d.title = 'Round ' + h.n + ': you ' + MOVES[h.y].name + ', bot ' + MOVES[h.b].name;
+      d.innerHTML = '<span>' + MOVES[h.y].e + '</span><span class="bm">' + MOVES[h.b].e + '</span><span class="r">' + h.r + h.n + '</span>';
+      el.tape.append(d);
+    });
+    el.tape.scrollLeft = el.tape.scrollWidth;
+  }
+
+  /* ---------- power-ups ---------- */
+  function spend(c) { S.pAura -= c; sfx.tick(); }
+  el.pwPeek.addEventListener('click', () => {
+    if (S.busy || S.pAura < COST.peek || S.peek) return;
+    spend(COST.peek);
+    const bot = S.nextBot;
+    // Prefer revealing the winning move sometimes, otherwise a safe (no-lose) move
+    if (Math.random() < 0.5) S.peek = { move: COUNTER[bot], label: 'W move' };
+    else {
+      const safe = pick([COUNTER[bot], bot]);
+      S.peek = { move: safe, label: 'can\'t lose' };
+    }
+    renderPeek();
+    el.intel.innerHTML = '<b>Third Eye:</b> one move is tagged on the buttons. It can\'t lose this round.';
+    render();
+  });
+  el.pwShield.addEventListener('click', () => {
+    if (S.busy || S.pAura < COST.shield || S.shield) return;
+    spend(COST.shield); S.shield = true;
+    el.intel.innerHTML = '<b>Shield up:</b> your next loss won\'t break the streak' + (S.game === 'run' ? ' or end the run.' : '.');
+    render();
+  });
+  el.pwScout.addEventListener('click', () => {
+    if (S.busy || S.pAura < COST.scout || S.scouted) return;
+    spend(COST.scout); S.scouted = true;
+    if (S.mode === 'sigma') {
+      const g = sigmaGuess();
+      el.intel.innerHTML = g
+        ? '<b>Scout report:</b> Sigma Bot thinks you\'ll play <b>' + MOVES[g].name + '</b> next, so it\'s leaning <b>' + MOVES[COUNTER[g]].name + '</b>. Break your pattern.'
+        : '<b>Scout report:</b> Sigma Bot has no read on you yet. It\'s guessing randomly for now.';
+      S.scouted = false; // sigma reads change every round, so Scout can be bought again
+    } else {
+      const h = HABITS[S.habit];
+      el.intel.innerHTML = '<b>Scout report: ' + h.name + '.</b> ' + h.how + (S.habit === 'stubborn' ? ' Favourite: <b>' + MOVES[S.fav].name + '</b>.' : '') +
+        ' <b>Counter:</b> ' + h.tip + ' It follows the habit about 4 rounds in 5.';
+    }
+    render();
+  });
+
+  /* ---------- sound ---------- */
+  let ctx = null;
+  function audio() {
+    if (!S.sound) return null;
+    try { ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+  function tone(freq, start, dur, type, vol, slideTo) {
+    const c = audio(); if (!c) return;
+    const o = c.createOscillator(), g = c.createGain();
+    const t0 = c.currentTime + start;
+    o.type = type || 'square'; o.frequency.setValueAtTime(freq, t0);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+    g.gain.setValueAtTime(vol || 0.08, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g).connect(c.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+  }
+  const sfx = {
+    tick: () => tone(520, 0, 0.08, 'square', 0.05),
+    go: () => tone(880, 0, 0.12, 'square', 0.06),
+    win: () => [523, 659, 784, 1046].forEach((f, i) => tone(f, i * 0.08, 0.16, 'square', 0.06)),
+    lose: () => { tone(160, 0, 0.7, 'sine', 0.35, 40); tone(90, 0, 0.8, 'triangle', 0.2, 30); },
+    tie: () => { tone(400, 0, 0.12, 'triangle', 0.08); tone(400, 0.16, 0.12, 'triangle', 0.08); },
+    shield: () => { tone(300, 0, 0.1, 'triangle', 0.1); tone(600, 0.1, 0.2, 'triangle', 0.1); },
+    six7: () => { for (let i = 0; i < 6; i++) tone(i % 2 ? 784 : 659, i * 0.22, 0.18, 'square', 0.07); }
+  };
+
+  /* ---------- round ---------- */
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  async function play(move) {
+    if (S.busy || !el.endCard.hidden) return;
+    S.busy = true; buttons.forEach(b => b.disabled = true); render();
+    el.youHand.className = 'hand you shake'; el.botHand.className = 'hand bot shake';
+    el.youGlyph.textContent = '✊'; el.botGlyph.textContent = '✊';
+    el.hypeSub.textContent = '';
+    const chant = ['Scissors…', 'Paper…', 'STONE!'];
+    for (let i = 0; i < 3; i++) {
+      el.hypeLine.textContent = chant[i];
+      i < 2 ? sfx.tick() : sfx.go();
+      await wait(reduced ? 120 : 300);
+    }
+    const bot = S.nextBot;
+    learn(move);
+    el.youGlyph.textContent = MOVES[move].e; el.botGlyph.textContent = MOVES[bot].e;
+    el.youHand.className = 'hand you pop'; el.botHand.className = 'hand bot pop';
+
+    let delta = 0, botDelta = 0, cls = '', r = 'T', runOver = false;
+    const sub = [];
+    if (move === bot) {
+      S.t++;
+      el.hypeLine.textContent = pick(TIE_LINES);
+      sub.push('Bot threw ' + MOVES[bot].name + ' too. Streak safe.');
+      sfx.tie(); S.botResult = 'T';
+    } else if (MOVES[move].beats === bot) {
+      S.p++; S.w++; S.streak++; r = 'W';
+      delta = Math.random() < 0.08 ? 1000 : pick([67, 67, 100, 150]);
+      if (S.streak >= 2) delta += 33 * S.streak; // streak bonus grows every win
+      botDelta = -pick([67, 100]);
+      el.youHand.classList.add('win'); el.botHand.classList.add('lose');
+      el.hypeLine.textContent = STREAK_LINES[S.streak] || (delta >= 1000 ? '+1000 aura. Unreal.' : pick(WIN_LINES));
+      sub.push('Bot threw ' + MOVES[bot].name + '.');
+      cls = 'up'; sfx.win(); confetti(40 + Math.min(S.streak, 10) * 8);
+      if (S.streak > best) { best = S.streak; try { localStorage.setItem('sps-aura-best', String(best)); } catch (e) {} }
+      S.botResult = 'L';
+    } else {
+      S.b++; S.l++; r = 'L';
+      delta = -pick([67, 100, 150]);
+      botDelta = pick([67, 100, 150]);
+      el.botHand.classList.add('win'); el.youHand.classList.add('lose');
+      S.botResult = 'W';
+      if (S.shield) {
+        S.shield = false;
+        el.hypeLine.textContent = 'Shield blocked it. Streak lives.';
+        sub.push('Bot threw ' + MOVES[bot].name + '. Your shield is used up.');
+        sfx.shield();
+      } else {
+        const lost = S.streak;
+        S.runStreak = lost;
+        S.streak = 0;
+        el.hypeLine.textContent = pick(LOSE_LINES);
+        sub.push('Bot threw ' + MOVES[bot].name + '.' + (lost >= 3 ? ' A ' + lost + ' streak, gone.' : ''));
+        sfx.lose();
+        if (S.game === 'run') runOver = true;
+      }
+      cls = 'down';
+    }
+    S.pAura += delta; S.bAura += botDelta;
+    S.botLast = bot;
+    S.hist.push({ y: move, b: bot, r: r, n: S.round });
+
+    el.hypeSub.innerHTML = '';
+    el.hypeSub.append(sub.join(' ') + ' ');
+    if (delta) {
+      const d = document.createElement('span');
+      d.className = 'delta ' + cls; d.textContent = fmt(delta) + ' aura';
+      el.hypeSub.append(d);
+    }
+
+    S.round++;
+    const switched = maybeSwitchHabit();
+    if (switched) el.hypeSub.append(' · NPC Bot switched up its habit.');
+    planBot();
+    renderTape();
+    render();
+
+    const scoreIs67 = S.game === 'match' && ((S.p === 6 && S.b === 7) || (S.p === 7 && S.b === 6));
+    const streak67 = r === 'W' && (S.streak === 6 || S.streak === 7 || S.streak === 67);
+    const round67 = S.round - 1 === 67;
+    if (!runOver && (scoreIs67 || streak67 || round67 || Math.random() < 0.03)) {
+      await wait(500);
+      await sixSeven(scoreIs67 ? 'Score is literally 6-7' : streak67 ? S.streak + ' streak = 6-7 energy' : 'SIX SEVENNNN');
+    }
+
+    if (runOver) { await wait(700); endRun(); }
+    else if (S.game === 'match' && (S.p >= TARGET || S.b >= TARGET)) { await wait(600); endMatch(); }
+    S.busy = false; buttons.forEach(b => b.disabled = false); render();
+  }
+
+  async function sixSeven(caption) {
+    el.sixCap.textContent = caption || 'SIX SEVENNNN';
+    el.six7.hidden = false; sfx.six7(); confetti(120, ['#FFD12E', '#FF4FA3']);
+    S.pAura += 67; render();
+    await wait(reduced ? 900 : 1700);
+    el.six7.hidden = true;
+  }
+
+  function endRun() {
+    const s = S.runStreak || 0;
+    const isBest = s > 0 && s >= best;
+    el.endTitle.textContent = s >= 10 ? 'Legendary run' : s >= 5 ? 'Solid run' : 'Run over';
+    el.endText.textContent = isBest ? 'New personal best. Screenshot it, chat.' :
+      s === 0 ? 'Cooked on the first try. The bot keeps its habit next run, so check the history.' :
+      'Tip: buy a Shield before risky rounds and Scout the bot when it switches habits.';
+    el.endFinal.textContent = 'Streak ' + s + ' · Best ' + best + ' · ' + fmt(S.pAura) + ' aura';
+    el.endCard.hidden = false;
+    if (isBest) confetti(200);
+    el.againBtn.focus();
+  }
+  function endMatch() {
+    const won = S.p > S.b;
+    el.endTitle.textContent = won ? 'BIG W' : 'You got cooked';
+    el.endText.textContent = won
+      ? (S.b === 6 ? 'Won it 7-6. The 6-7 prophecy is fulfilled.' : 'You beat the bot. Aura level: ' + rankFor(S.pAura) + '.')
+      : (S.p === 6 ? 'Lost 6-7. Painful, but iconic.' : 'The bot fanum taxed your whole match. Run it back.');
+    el.endFinal.textContent = 'Final ' + S.p + '-' + S.b + ' · Best streak ' + best + ' · ' + fmt(S.pAura) + ' aura';
+    el.endCard.hidden = false;
+    if (won) { sfx.win(); confetti(200); } else sfx.lose();
+    el.againBtn.focus();
+  }
+
+  function reset(full) {
+    Object.assign(S, { p: 0, b: 0, pAura: 0, bAura: 0, round: 1, streak: 0, w: 0, l: 0, t: 0, peek: null, shield: false, runStreak: 0 });
+    if (full) {
+      Object.assign(S, { last: null, trans: {}, hist: [], habit: pick(HABIT_KEYS), fav: pick(KEYS), botLast: null, botResult: null, scouted: false, habitRounds: 0 });
+    } else if (S.hist.length && !S.hist[S.hist.length - 1].sep) {
+      S.hist.push({ sep: true }); // same bot keeps its habit, so your read carries over
+    }
+    el.endCard.hidden = true;
+    el.youHand.className = 'hand you'; el.botHand.className = 'hand bot';
+    el.youGlyph.textContent = '✊'; el.botGlyph.textContent = '✊';
+    el.hypeLine.textContent = S.game === 'run' ? 'New run. Lock in.' : 'New match. Lock in.';
+    el.hypeSub.textContent = S.game === 'run' ? 'One loss ends the run. Ties are safe.' : 'First to 7 takes it.';
+    el.intel.innerHTML = S.mode === 'sigma'
+      ? '<b>Tip:</b> Sigma Bot learns what you play after each move. Mix it up, and Scout to see what it expects.'
+      : '<b>Tip:</b> ties keep your streak. The NPC Bot repeats a habit and switches it up every 7 rounds. Watch the round history.';
+    planBot(); renderTape(); render();
+  }
+
+  /* ---------- confetti ---------- */
+  const cv = $('confetti'), cx = cv.getContext('2d');
+  let parts = [], raf = null;
+  function confetti(n, colors) {
+    if (reduced) return;
+    const cols = colors || ['#FF4FA3', '#2EC4FF', '#FFD12E', '#7CF29A', '#FFFDF6'];
+    cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio;
+    for (let i = 0; i < n; i++) parts.push({
+      x: innerWidth / 2 + (Math.random() - .5) * 120, y: innerHeight * .45,
+      vx: (Math.random() - .5) * 14, vy: -Math.random() * 14 - 4,
+      r: Math.random() * 6 + 4, c: cols[i % cols.length], a: Math.random() * 6, va: (Math.random() - .5) * .4, life: 90 + Math.random() * 40
+    });
+    if (!raf) raf = requestAnimationFrame(tick);
+  }
+  function tick() {
+    cx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    cx.clearRect(0, 0, innerWidth, innerHeight);
+    parts = parts.filter(p => p.life-- > 0 && p.y < innerHeight + 30);
+    for (const p of parts) {
+      p.vy += .4; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.a += p.va;
+      cx.save(); cx.translate(p.x, p.y); cx.rotate(p.a); cx.fillStyle = p.c;
+      cx.fillRect(-p.r / 2, -p.r / 3, p.r, p.r * .66); cx.restore();
+    }
+    raf = parts.length ? requestAnimationFrame(tick) : (cx.clearRect(0, 0, innerWidth, innerHeight), null);
+  }
+
+  /* ---------- wiring ---------- */
+  buttons.forEach(b => b.addEventListener('click', () => play(b.dataset.move)));
+  el.againBtn.addEventListener('click', () => reset(false));
+  el.sixBtn.addEventListener('click', () => { if (!S.busy) sixSeven('SIX SEVENNNN'); });
+  el.gameBtn.addEventListener('click', () => {
+    if (S.busy) return;
+    S.game = S.game === 'run' ? 'match' : 'run';
+    el.gameBtn.textContent = S.game === 'run' ? 'Mode: Streak run' : 'Mode: First to 7';
+    el.modeSticker.textContent = S.game === 'run' ? 'Streak run · one loss ends it' : 'Aura edition · first to 7';
+    reset(true);
+  });
+  el.modeBtn.addEventListener('click', () => {
+    if (S.busy) return;
+    S.mode = S.mode === 'npc' ? 'sigma' : 'npc';
+    const sigma = S.mode === 'sigma';
+    el.modeBtn.textContent = sigma ? 'Bot: Sigma 🗿' : 'Bot: NPC 🤖';
+    el.modeBtn.setAttribute('aria-pressed', String(sigma));
+    el.botName.textContent = sigma ? 'Sigma Bot' : 'NPC Bot';
+    reset(true);
+    el.hypeLine.textContent = sigma ? 'Sigma Bot has entered the chat.' : 'NPC Bot is back.';
+    el.hypeSub.textContent = sigma ? 'It learns your patterns. Stay unpredictable.' : 'It has a habit you can read.';
+  });
+  el.soundBtn.addEventListener('click', () => {
+    S.sound = !S.sound;
+    el.soundBtn.textContent = S.sound ? 'Sound on' : 'Sound off';
+    el.soundBtn.setAttribute('aria-pressed', String(S.sound));
+    if (S.sound) sfx.go();
+  });
+
+  let lastKey = '';
+  document.addEventListener('keydown', e => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (!el.endCard.hidden && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); reset(false); return; }
+    if (e.key === '7' && lastKey === '6') { lastKey = ''; if (!S.busy) sixSeven('You typed 6-7. Legendary.'); return; }
+    lastKey = e.key;
+    const map = { '1': 'scissors', '2': 'paper', '3': 'stone' };
+    const m = map[e.key];
+    if (m) play(m);
+  });
+
+  planBot();
+  render();
+})();
+</script>
+
+</body>
+</html>
