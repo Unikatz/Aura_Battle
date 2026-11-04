@@ -1,0 +1,23 @@
+{
+  "name": "primary",
+  "version": "1.0.0",
+  "description": "A scissors-paper-stone web game with Gen Alpha energy: aura points, brainrot commentary and 6-7 moments.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Unikatz/Aura_Battle.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Unikatz/Aura_Battle/issues"
+  },
+  "homepage": "https://github.com/Unikatz/Aura_Battle#readme",
+  "dependencies": {
+    "@vercel/analytics": "^2.0.1"
+  }
+}
